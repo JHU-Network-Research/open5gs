@@ -300,6 +300,14 @@ int emm_handle_attach_request(enb_ue_t *enb_ue, mme_ue_t *mme_ue,
 
         ogs_info("    IMSI[%s]", imsi_bcd);
 
+        /*
+         * Request the IMSI on every attach: even though the UE supplied its
+         * IMSI in plaintext, still force an IDENTITY REQUEST so that every
+         * attach involves an explicit IMSI disclosure. mme_ue_set_imsi()
+         * cleared the flag above, so set it again here.
+         */
+        mme_ue->force_imsi_identity_request = true;
+
         break;
     case OGS_NAS_EPS_MOBILE_IDENTITY_GUTI:
         eps_mobile_identity_guti = &eps_mobile_identity->guti;
