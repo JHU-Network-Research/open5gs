@@ -545,6 +545,17 @@ struct mme_ue_s {
     char            imsi_bcd[OGS_MAX_IMSI_BCD_LEN+1];
     ogs_nas_mobile_identity_imsi_t nas_mobile_identity_imsi;
 
+    /*
+     * Set when the UE identified itself by GUTI/S-TMSI in the current NAS
+     * procedure (Attach, TAU or Service Request) rather than by a plaintext
+     * IMSI. The MME then ignores the GUTI/S-TMSI-derived IMSI and forces an
+     * IDENTITY REQUEST so that every UE discloses its IMSI, even if the
+     * procedure will ultimately be rejected. Cleared by mme_ue_set_imsi()
+     * once the IMSI is obtained (from an IDENTITY RESPONSE, a plaintext IMSI,
+     * or an SGSN context response).
+     */
+    bool            force_imsi_identity_request;
+
     uint8_t         imeisv[OGS_MAX_IMEISV_LEN];
     int             imeisv_len;
     uint8_t         masked_imeisv[OGS_MAX_IMEISV_LEN];

@@ -373,6 +373,21 @@ static void common_register_state(ogs_fsm_t *s, mme_event_t *e,
                 break;
             }
 
+            /*
+             * Request the IMSI for every UE: the Service Request identifies
+             * the UE only by its S-TMSI, so send an IDENTITY REQUEST and wait
+             * for the response before granting or rejecting service.
+             */
+            if (mme_ue->force_imsi_identity_request) {
+                ogs_info("[%s] Service request : requesting IMSI identity",
+                        mme_ue->imsi_bcd);
+                CLEAR_MME_UE_TIMER(mme_ue->t3470);
+                r = nas_eps_send_identity_request(mme_ue);
+                ogs_expect(r == OGS_OK);
+                ogs_assert(r != OGS_ERROR);
+                break;
+            }
+
             if (!MME_UE_HAVE_IMSI(mme_ue)) {
                 ogs_info("Service request : Unknown UE");
                 r = nas_eps_send_service_reject(enb_ue, mme_ue,
@@ -471,7 +486,15 @@ static void common_register_state(ogs_fsm_t *s, mme_event_t *e,
                 break;
             }
 
-            if (!MME_UE_HAVE_IMSI(mme_ue)) {
+            /*
+             * Request the IMSI for every UE: if the UE attached with a
+             * GUTI/S-TMSI (force_imsi_identity_request) or no IMSI could be
+             * derived, send an IDENTITY REQUEST and wait for the response
+             * before continuing, regardless of whether the attach would
+             * otherwise be accepted or rejected.
+             */
+            if (!MME_UE_HAVE_IMSI(mme_ue) ||
+                    mme_ue->force_imsi_identity_request) {
                 CLEAR_MME_UE_TIMER(mme_ue->t3470);
                 r = nas_eps_send_identity_request(mme_ue);
                 ogs_expect(r == OGS_OK);
@@ -549,6 +572,23 @@ static void common_register_state(ogs_fsm_t *s, mme_event_t *e,
                     ptmsi_sig = &message->emm.tracking_area_update_request.old_p_tmsi_signature;
                 mme_gtp1_send_sgsn_context_request(sgsn, mme_ue, ptmsi_sig);
                 /* FIXME: use a specific FSM state here to state we are waiting for resolution from Gn? */
+                break;
+            }
+
+            /*
+             * Request the IMSI for every UE: the TAU identifies the UE by its
+             * old GUTI, so send an IDENTITY REQUEST and wait for the response
+             * before the TAU is accepted or rejected. (UEs arriving from a
+             * 2G/3G SGSN over Gn are handled above and resolve their IMSI via
+             * the SGSN context response instead.)
+             */
+            if (mme_ue->force_imsi_identity_request) {
+                ogs_info("[%s] TAU request : requesting IMSI identity",
+                        mme_ue->imsi_bcd);
+                CLEAR_MME_UE_TIMER(mme_ue->t3470);
+                r = nas_eps_send_identity_request(mme_ue);
+                ogs_expect(r == OGS_OK);
+                ogs_assert(r != OGS_ERROR);
                 break;
             }
 
@@ -746,6 +786,22 @@ static void common_register_state(ogs_fsm_t *s, mme_event_t *e,
             if (rv != OGS_OK) {
                 ogs_error("emm_handle_extended_service_request() failed");
                 MME_RESTORE_CONTEXT_ON_FAILURE(mme_ue, s);
+                break;
+            }
+
+            /*
+             * Request the IMSI for every UE: the Extended Service Request
+             * identifies the UE only by its M-TMSI, so send an IDENTITY
+             * REQUEST and wait for the response before granting or rejecting
+             * service.
+             */
+            if (mme_ue->force_imsi_identity_request) {
+                ogs_info("[%s] Extended service request : "
+                        "requesting IMSI identity", mme_ue->imsi_bcd);
+                CLEAR_MME_UE_TIMER(mme_ue->t3470);
+                r = nas_eps_send_identity_request(mme_ue);
+                ogs_expect(r == OGS_OK);
+                ogs_assert(r != OGS_ERROR);
                 break;
             }
 
@@ -1998,7 +2054,8 @@ void emm_state_exception(ogs_fsm_t *s, mme_event_t *e)
                 break;
             }
 
-            if (!MME_UE_HAVE_IMSI(mme_ue)) {
+            if (!MME_UE_HAVE_IMSI(mme_ue) ||
+                    mme_ue->force_imsi_identity_request) {
                 CLEAR_MME_UE_TIMER(mme_ue->t3470);
                 r = nas_eps_send_identity_request(mme_ue);
                 ogs_expect(r == OGS_OK);

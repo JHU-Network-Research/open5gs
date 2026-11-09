@@ -315,6 +315,12 @@ int emm_handle_attach_request(enb_ue_t *enb_ue, mme_ue_t *mme_ue,
                 nas_guti.m_tmsi,
                 MME_UE_HAVE_IMSI(mme_ue)
                     ? mme_ue->imsi_bcd : "Unknown IMSI");
+
+        /*
+         * The UE attached with a GUTI instead of a plaintext IMSI. Ignore the
+         * GUTI and force an IDENTITY REQUEST so the UE discloses its IMSI.
+         */
+        mme_ue->force_imsi_identity_request = true;
         break;
     default:
         ogs_warn("Not implemented[%d]", eps_mobile_identity->imsi.type);
@@ -649,6 +655,13 @@ int emm_handle_service_request(
 
     /* Set EPS Service */
     mme_ue->nas_eps.type = MME_EPS_TYPE_SERVICE_REQUEST;
+
+    /*
+     * A Service Request identifies the UE by its S-TMSI. Ignore the S-TMSI
+     * and force an IDENTITY REQUEST so the UE discloses its IMSI before the
+     * service is granted or rejected.
+     */
+    mme_ue->force_imsi_identity_request = true;
     ogs_debug("    SERVICE TYPE[%d] TSC[%d] KSI[%d] VALUE[%d]",
             mme_ue->nas_eps.type,
             mme_ue->nas_eps.service.tsc,
@@ -756,6 +769,13 @@ int emm_handle_tau_request(
     memcpy(&mme_ue->nas_eps.update, eps_update_type,
             sizeof(ogs_nas_eps_update_type_t));
     mme_ue->nas_eps.type = MME_EPS_TYPE_TAU_REQUEST;
+
+    /*
+     * A TAU identifies the UE by its old GUTI. Ignore the GUTI and force an
+     * IDENTITY REQUEST so the UE discloses its IMSI before the TAU is
+     * accepted or rejected.
+     */
+    mme_ue->force_imsi_identity_request = true;
     ogs_debug("    UPDATE TYPE[%d] TSC[%d] KSI[%d] Active-flag[%d] VALUE[%d]",
             mme_ue->nas_eps.type,
             mme_ue->nas_eps.update.tsc,
@@ -914,6 +934,13 @@ int emm_handle_extended_service_request(
     memcpy(&mme_ue->nas_eps.service, service_type,
             sizeof(ogs_nas_service_type_t));
     mme_ue->nas_eps.type = MME_EPS_TYPE_EXTENDED_SERVICE_REQUEST;
+
+    /*
+     * An Extended Service Request identifies the UE by its M-TMSI. Ignore the
+     * M-TMSI and force an IDENTITY REQUEST so the UE discloses its IMSI before
+     * the service is granted or rejected.
+     */
+    mme_ue->force_imsi_identity_request = true;
     ogs_debug("    Extended SERVICE TYPE[%d] TSC[%d] KSI[%d] VALUE[%d]",
             mme_ue->nas_eps.type,
             mme_ue->nas_eps.service.tsc,
